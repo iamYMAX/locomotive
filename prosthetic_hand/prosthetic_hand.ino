@@ -11,8 +11,12 @@
 #include <ESP32Servo.h>
 #include "config.h"
 
-// Создаем объект сервопривода
-Servo fingerServo;
+// Создаем объекты сервоприводов для каждого пальца
+Servo thumbServo;
+Servo indexServo;
+Servo middleServo;
+Servo ringServo;
+Servo pinkyServo;
 
 // Переменные для сглаживания сигнала (простое скользящее среднее)
 const int numReadings = 10;
@@ -24,11 +28,14 @@ int average = 0;                // Среднее значение
 void setup() {
   // Инициализация последовательного порта для отладки
   Serial.begin(115200);
-  Serial.println("--- Prosthetic Hand Finger Prototype ---");
+  Serial.println("--- Prosthetic Hand 5-Finger Prototype ---");
 
-  // Подключение сервопривода к пину
-  fingerServo.setPeriodHertz(50); // Стандартная частота для сервоприводов
-  fingerServo.attach(SERVO_PIN, 500, 2500); // Подключаем пин, указываем диапазон ширины импульса
+  // Подключение сервоприводов к пинам
+  thumbServo.attach(SERVO_THUMB_PIN);
+  indexServo.attach(SERVO_INDEX_PIN);
+  middleServo.attach(SERVO_MIDDLE_PIN);
+  ringServo.attach(SERVO_RING_PIN);
+  pinkyServo.attach(SERVO_PINKY_PIN);
 
   // Инициализация пина датчика
   pinMode(EMG_PIN, INPUT);
@@ -44,32 +51,27 @@ void setup() {
 void loop() {
   // --- 1. Чтение и сглаживание сигнала ---
 
-  // Вычитаем последнее значение
+  // (Логика сглаживания остается без изменений)
   total = total - readings[readIndex];
-  // Считываем новое значение с датчика
   readings[readIndex] = analogRead(EMG_PIN);
-  // Добавляем новое значение к сумме
   total = total + readings[readIndex];
-  // Переходим к следующему индексу
-  readIndex = readIndex + 1;
-  if (readIndex >= numReadings) {
-    readIndex = 0;
-  }
-  // Рассчитываем среднее
+  readIndex = (readIndex + 1) % numReadings;
   average = total / numReadings;
 
   // --- 2. Преобразование значения в угол ---
 
-  // Преобразуем среднее значение (от EMG_MIN до EMG_MAX) в угол (от 0 до 180)
-  // EMG_MIN - значение в покое, EMG_MAX - при максимальном напряжении мышцы
+  // (Логика преобразования остается без изменений)
   int servoAngle = map(average, EMG_MIN_THRESHOLD, EMG_MAX_THRESHOLD, 0, 180);
-
-  // Ограничиваем угол, чтобы избежать выхода за пределы
   servoAngle = constrain(servoAngle, 0, 180);
 
-  // --- 3. Управление сервоприводом ---
+  // --- 3. Управление сервоприводами ---
 
-  fingerServo.write(servoAngle);
+  // Отправляем команду на все сервоприводы одновременно
+  thumbServo.write(servoAngle);
+  indexServo.write(servoAngle);
+  middleServo.write(servoAngle);
+  ringServo.write(servoAngle);
+  pinkyServo.write(servoAngle);
 
   // --- 4. Отладка ---
 
