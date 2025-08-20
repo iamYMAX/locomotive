@@ -25,6 +25,10 @@ int readIndex = 0;              // Индекс текущего показан�
 long total = 0;                 // Сумма показаний
 int average = 0;                // Среднее значение
 
+// Перечисление для хранения текущего жеста
+enum Gesture { OPEN, PINCH, FIST };
+Gesture currentGesture = OPEN;
+
 void setup() {
   // Инициализация последовательного порта для отладки
   Serial.begin(115200);
@@ -50,38 +54,68 @@ void setup() {
 
 void loop() {
   // --- 1. Чтение и сглаживание сигнала ---
-
-  // (Логика сглаживания остается без изменений)
   total = total - readings[readIndex];
   readings[readIndex] = analogRead(EMG_PIN);
   total = total + readings[readIndex];
   readIndex = (readIndex + 1) % numReadings;
   average = total / numReadings;
 
-  // --- 2. Преобразование значения в угол ---
+  // --- 2. Определение и выполнение жеста ---
+  if (average < EMG_THRESHOLD_PINCH) {
+    if (currentGesture != OPEN) {
+      currentGesture = OPEN;
+      setOpenPalm();
+      Serial.println("Gesture: OPEN");
+    }
+  } else if (average < EMG_THRESHOLD_FIST) {
+    if (currentGesture != PINCH) {
+      currentGesture = PINCH;
+      setPinch();
+      Serial.println("Gesture: PINCH");
+    }
+  } else {
+    if (currentGesture != FIST) {
+      currentGesture = FIST;
+      setFist();
+      Serial.println("Gesture: FIST");
+    }
+  }
 
-  // (Логика преобразования остается без изменений)
-  int servoAngle = map(average, EMG_MIN_THRESHOLD, EMG_MAX_THRESHOLD, 0, 180);
-  servoAngle = constrain(servoAngle, 0, 180);
-
-  // --- 3. Управление сервоприводами ---
-
-  // Отправляем команду на все сервоприводы одновременно
-  thumbServo.write(servoAngle);
-  indexServo.write(servoAngle);
-  middleServo.write(servoAngle);
-  ringServo.write(servoAngle);
-  pinkyServo.write(servoAngle);
-
-  // --- 4. Отладка ---
-
-  Serial.print("Raw: ");
-  Serial.print(analogRead(EMG_PIN));
-  Serial.print("\t Smoothed: ");
-  Serial.print(average);
-  Serial.print("\t Angle: ");
-  Serial.println(servoAngle);
+  // --- 3. Отладка ---
+  Serial.print("Smoothed: ");
+  Serial.println(average);
 
   // Небольшая задержка для стабильности
-  delay(10);
+  delay(50); // Увеличим задержку, т.к. команды отправляются реже
+}
+
+// --- Функции для управления жестами ---
+
+// Устанавливает все пальцы в одно положение
+void setAllFingers(int angle) {
+  thumbServo.write(angle);
+  indexServo.write(angle);
+  middleServo.write(angle);
+  ringServo.write(angle);
+  pinkyServo.write(angle);
+}
+
+// Жест: Открытая ладонь
+void setOpenPalm() {
+  setAllFingers(SERVO_ANGLE_OPEN);
+}
+
+// Жест: Кулак
+void setFist() {
+  setAllFingers(SERVO_ANGLE_CLOSED);
+}
+
+// Жест: Щипок
+void setPinch() {
+  thumbServo.write(SERVO_ANGLE_PINCH_THUMB);
+  indexServo.write(SERVO_ANGLE_PINCH_INDEX);
+  // Остальные пальцы остаются открытыми
+  middleServo.write(SERVO_ANGLE_OPEN);
+  ringServo.write(SERVO_ANGLE_OPEN);
+  pinkyServo.write(SERVO_ANGLE_OPEN);
 }
